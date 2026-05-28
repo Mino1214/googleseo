@@ -40,10 +40,21 @@ function saveData(data) {
 }
 
 function getClientIp(req) {
+  const cfIp = req.headers["cf-connecting-ip"];
+  if (typeof cfIp === "string" && cfIp.length > 0) {
+    return cfIp.trim();
+  }
+
+  const trueClientIp = req.headers["true-client-ip"];
+  if (typeof trueClientIp === "string" && trueClientIp.length > 0) {
+    return trueClientIp.trim();
+  }
+
   const forwarded = req.headers["x-forwarded-for"];
   if (typeof forwarded === "string" && forwarded.length > 0) {
     return forwarded.split(",")[0].trim();
   }
+
   return req.ip || req.socket.remoteAddress || "unknown";
 }
 

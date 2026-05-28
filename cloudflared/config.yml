@@ -1,0 +1,16 @@
+# Cloudflare Tunnel 설정 예시
+# 1) cloudflared tunnel login
+# 2) cloudflared tunnel create googleseo
+# 3) cloudflared tunnel route dns googleseo your-domain.com
+# 4) credentials-file 경로를 실제 json 경로로 바꾼 뒤 실행:
+#    cloudflared tunnel --config cloudflared/config.yml run googleseo
+
+tunnel: googleseo
+credentials-file: /root/.cloudflared/TUNNEL-UUID.json
+
+ingress:
+  - hostname: your-domain.com
+    service: http://127.0.0.1:3000
+  - hostname: www.your-domain.com
+    service: http://127.0.0.1:3000
+  - service: http_status:404
