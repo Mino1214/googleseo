@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>관리자 · 접속/클릭 통계</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family:
+          Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #f3f5f9;
+        color: #151922;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #f3f5f9;
+      }
+
+      .wrap {
+        width: min(100%, 1100px);
+        margin: 0 auto;
+        padding: 24px 16px 48px;
+      }
+
+      .card {
+        background: #fff;
+        border: 1px solid #e4e8f0;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 8px 24px rgba(21, 25, 34, 0.04);
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 1.5rem;
+      }
+
+      .sub {
+        margin: 0 0 24px;
+        color: #667085;
+        font-size: 0.95rem;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 0.9rem;
+        font-weight: 600;
+      }
+
+      input {
+        width: 100%;
+        padding: 12px 14px;
+        border: 1px solid #d0d5dd;
+        border-radius: 8px;
+        font: inherit;
+      }
+
+      .field {
+        margin-bottom: 16px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 8px;
+        padding: 12px 16px;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .btn-primary {
+        width: 100%;
+        background: #2563eb;
+        color: #fff;
+      }
+
+      .btn-secondary {
+        background: #eef2ff;
+        color: #3730a3;
+      }
+
+      .error {
+        margin-top: 12px;
+        color: #dc2626;
+        font-size: 0.9rem;
+      }
+
+      .toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+
+      .stat-box {
+        background: #f8fafc;
+        border: 1px solid #e4e8f0;
+        border-radius: 10px;
+        padding: 16px;
+      }
+
+      .stat-label {
+        color: #667085;
+        font-size: 0.85rem;
+        margin-bottom: 6px;
+      }
+
+      .stat-value {
+        font-size: 1.6rem;
+        font-weight: 700;
+      }
+
+      section {
+        margin-bottom: 28px;
+      }
+
+      section h2 {
+        margin: 0 0 12px;
+        font-size: 1.1rem;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.92rem;
+      }
+
+      th,
+      td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #edf0f5;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: #f8fafc;
+        color: #475467;
+        font-weight: 600;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+        border: 1px solid #e4e8f0;
+        border-radius: 10px;
+      }
+
+      .muted {
+        color: #667085;
+        font-size: 0.85rem;
+      }
+
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div id="login-view" class="card">
+        <h1>관리자 로그인</h1>
+        <p class="sub">IP 접속 내역과 배너 클릭 통계를 확인합니다.</p>
+        <form id="login-form">
+          <div class="field">
+            <label for="username">아이디</label>
+            <input id="username" name="username" autocomplete="username" required />
+          </div>
+          <div class="field">
+            <label for="password">비밀번호</label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              required
+            />
+          </div>
+          <button class="btn-primary" type="submit">로그인</button>
+          <p id="login-error" class="error hidden">아이디 또는 비밀번호가 올바르지 않습니다.</p>
+        </form>
+      </div>
+
+      <div id="dashboard-view" class="hidden">
+        <div class="toolbar">
+          <div>
+            <h1>접속 · 클릭 통계</h1>
+            <p class="sub">최근 30초마다 자동 새로고침됩니다.</p>
+          </div>
+          <button id="logout-btn" class="btn-secondary" type="button">로그아웃</button>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-label">총 접속</div>
+            <div class="stat-value" id="total-visits">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">접속 IP 수</div>
+            <div class="stat-value" id="unique-visit-ips">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">총 클릭</div>
+            <div class="stat-value" id="total-clicks">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">클릭 IP 수</div>
+            <div class="stat-value" id="unique-click-ips">0</div>
+          </div>
+        </div>
+
+        <section class="card">
+          <h2>배너별 클릭 횟수</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>배너</th>
+                  <th>클릭 수</th>
+                </tr>
+              </thead>
+              <tbody id="banner-clicks-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>IP별 접속 횟수</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>IP</th>
+                  <th>접속 수</th>
+                </tr>
+              </thead>
+              <tbody id="ip-visits-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>IP 접속 내역</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>시간</th>
+                  <th>IP</th>
+                  <th>User Agent</th>
+                </tr>
+              </thead>
+              <tbody id="visits-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>배너 클릭 내역</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>시간</th>
+                  <th>배너</th>
+                  <th>IP</th>
+                </tr>
+              </thead>
+              <tbody id="clicks-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <script>
+      const TOKEN_KEY = "admin_token";
+      const loginView = document.getElementById("login-view");
+      const dashboardView = document.getElementById("dashboard-view");
+      const loginForm = document.getElementById("login-form");
+      const loginError = document.getElementById("login-error");
+      const logoutBtn = document.getElementById("logout-btn");
+      let refreshTimer = null;
+
+      function getToken() {
+        return localStorage.getItem(TOKEN_KEY);
+      }
+
+      function setToken(token) {
+        localStorage.setItem(TOKEN_KEY, token);
+      }
+
+      function clearToken() {
+        localStorage.removeItem(TOKEN_KEY);
+      }
+
+      function formatDate(value) {
+        return new Date(value).toLocaleString("ko-KR");
+      }
+
+      function showLogin() {
+        loginView.classList.remove("hidden");
+        dashboardView.classList.add("hidden");
+        if (refreshTimer) {
+          clearInterval(refreshTimer);
+          refreshTimer = null;
+        }
+      }
+
+      function showDashboard() {
+        loginView.classList.add("hidden");
+        dashboardView.classList.remove("hidden");
+      }
+
+      async function fetchStats() {
+        const response = await fetch("/api/admin/stats", {
+          headers: {
+            Authorization: "Bearer " + getToken(),
+          },
+        });
+
+        if (response.status === 401) {
+          clearToken();
+          showLogin();
+          throw new Error("Unauthorized");
+        }
+
+        if (!response.ok) {
+          throw new Error("Failed to load stats");
+        }
+
+        return response.json();
+      }
+
+      function renderRows(target, rows, emptyText) {
+        target.innerHTML = "";
+
+        if (!rows.length) {
+          const tr = document.createElement("tr");
+          tr.innerHTML = '<td colspan="99" class="muted">' + emptyText + "</td>";
+          target.appendChild(tr);
+          return;
+        }
+
+        for (const row of rows) {
+          target.appendChild(row);
+        }
+      }
+
+      function renderStats(stats) {
+        document.getElementById("total-visits").textContent = stats.totalVisits;
+        document.getElementById("unique-visit-ips").textContent = stats.uniqueVisitIps;
+        document.getElementById("total-clicks").textContent = stats.totalClicks;
+        document.getElementById("unique-click-ips").textContent = stats.uniqueClickIps;
+
+        const bannerRows = Object.entries(stats.bannerClicks)
+          .sort((a, b) => Number(a[0]) - Number(b[0]))
+          .map(function ([bannerId, count]) {
+            const tr = document.createElement("tr");
+            tr.innerHTML =
+              "<td>배너 " + bannerId + "</td><td>" + count + "회</td>";
+            return tr;
+          });
+        renderRows(
+          document.getElementById("banner-clicks-body"),
+          bannerRows,
+          "아직 클릭 기록이 없습니다."
+        );
+
+        const ipVisitRows = Object.entries(stats.ipVisitCounts)
+          .sort((a, b) => b[1] - a[1])
+          .map(function ([ip, count]) {
+            const tr = document.createElement("tr");
+            tr.innerHTML = "<td>" + ip + "</td><td>" + count + "회</td>";
+            return tr;
+          });
+        renderRows(
+          document.getElementById("ip-visits-body"),
+          ipVisitRows,
+          "아직 접속 기록이 없습니다."
+        );
+
+        const visitRows = stats.visits.slice(0, 100).map(function (visit) {
+          const tr = document.createElement("tr");
+          tr.innerHTML =
+            "<td>" +
+            formatDate(visit.at) +
+            "</td><td>" +
+            visit.ip +
+            '</td><td class="muted">' +
+            (visit.userAgent || "-") +
+            "</td>";
+          return tr;
+        });
+        renderRows(
+          document.getElementById("visits-body"),
+          visitRows,
+          "아직 접속 기록이 없습니다."
+        );
+
+        const clickRows = stats.clicks.slice(0, 100).map(function (click) {
+          const tr = document.createElement("tr");
+          tr.innerHTML =
+            "<td>" +
+            formatDate(click.at) +
+            "</td><td>" +
+            (click.bannerLabel || "배너 " + click.bannerId) +
+            "</td><td>" +
+            click.ip +
+            "</td>";
+          return tr;
+        });
+        renderRows(
+          document.getElementById("clicks-body"),
+          clickRows,
+          "아직 클릭 기록이 없습니다."
+        );
+      }
+
+      async function loadDashboard() {
+        const stats = await fetchStats();
+        renderStats(stats);
+        showDashboard();
+
+        if (!refreshTimer) {
+          refreshTimer = setInterval(function () {
+            fetchStats().then(renderStats).catch(function () {});
+          }, 30000);
+        }
+      }
+
+      loginForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+        loginError.classList.add("hidden");
+
+        const formData = new FormData(loginForm);
+        const response = await fetch("/api/admin/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: formData.get("username"),
+            password: formData.get("password"),
+          }),
+        });
+
+        if (!response.ok) {
+          loginError.classList.remove("hidden");
+          return;
+        }
+
+        const data = await response.json();
+        setToken(data.token);
+        await loadDashboard();
+      });
+
+      logoutBtn.addEventListener("click", function () {
+        clearToken();
+        showLogin();
+      });
+
+      if (getToken()) {
+        loadDashboard().catch(showLogin);
+      }
+    </script>
+  </body>
+</html>
