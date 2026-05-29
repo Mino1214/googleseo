@@ -8,6 +8,11 @@ const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || "0.0.0.0";
 const DATA_DIR = path.join(__dirname, "data");
 const DATA_FILE = path.join(DATA_DIR, "analytics.json");
+const ROOT_INDEX_FILE = path.join(__dirname, "index.html");
+const LANDING_OUT_DIR = path.join(__dirname, "landing", "out");
+const LANDING_INDEX_FILE = path.join(LANDING_OUT_DIR, "index.html");
+const GOOGLESEO_QUERY_TOKEN =
+  process.env.GOOGLESEO_QUERY_TOKEN?.trim() || crypto.randomUUID();
 const ADMIN_USER = "admin";
 const ADMIN_PASS = "admin";
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -16,7 +21,35 @@ const sessions = new Map();
 
 app.set("trust proxy", true);
 app.use(express.json());
-app.use(express.static(__dirname));
+app.get("/index.html", (req, res) => {
+  if (isGoogleseoPage(req)) {
+    return sendGoogleseoHtml(res);
+  }
+
+  res.redirect(302, "/");
+});
+app.use(
+  "/_next",
+  express.static(path.join(LANDING_OUT_DIR, "_next"), {
+    index: false,
+    redirect: false,
+  }),
+);
+app.use(
+  "/copied",
+  express.static(path.join(LANDING_OUT_DIR, "copied"), {
+    index: false,
+    redirect: false,
+  }),
+);
+app.use(
+  "/media",
+  express.static(path.join(LANDING_OUT_DIR, "media"), {
+    index: false,
+    redirect: false,
+  }),
+);
+app.use(express.static(__dirname, { index: false, redirect: false }));
 
 function emptyData() {
   return { visits: [], clicks: [] };
@@ -161,11 +194,76 @@ app.get("/api/admin/stats", requireAdmin, (_req, res) => {
   res.json(buildStats(loadData()));
 });
 
+function isGoogleseoPage(req) {
+  const queryIndex = req.originalUrl.indexOf("?");
+  if (queryIndex === -1) {
+    return false;
+  }
+
+  const rawQuery = req.originalUrl.slice(queryIndex + 1);
+  try {
+    return decodeURIComponent(rawQuery) === GOOGLESEO_QUERY_TOKEN;
+  } catch {
+    return rawQuery === GOOGLESEO_QUERY_TOKEN;
+  }
+}
+
+function googleseoQueryUrl() {
+  return `/?${encodeURIComponent(GOOGLESEO_QUERY_TOKEN)}`;
+}
+
+function sendGoogleseoHtml(res) {
+  const html = fs
+    .readFileSync(ROOT_INDEX_FILE, "utf8")
+    .replace(
+      /<link rel="canonical" href="[^"]*" \/>/,
+      `<link rel="canonical" href="${googleseoQueryUrl()}" />`,
+    );
+
+  res.type("html").send(html);
+}
+
+function sendLandingFile(filename, noindex = true) {
+  return (_req, res, next) => {
+    const file = path.join(LANDING_OUT_DIR, filename);
+    if (!fs.existsSync(file)) {
+      return next();
+    }
+
+    if (noindex) {
+      res.set("X-Robots-Tag", "noindex, follow");
+    }
+
+    res.sendFile(file);
+  };
+}
+
+app.get("/", (req, res) => {
+  if (isGoogleseoPage(req)) {
+    return sendGoogleseoHtml(res);
+  }
+
+  if (!fs.existsSync(LANDING_INDEX_FILE)) {
+    return res.status(404).send("Landing page build not found.");
+  }
+
+  res.sendFile(LANDING_INDEX_FILE);
+});
+
+app.get("/robots.txt", sendLandingFile("robots.txt", false));
+app.get("/sitemap.xml", sendLandingFile("sitemap.xml", false));
+app.get(["/browse", "/browse.html"], sendLandingFile("browse.html"));
+app.get(["/sites", "/sites.html"], sendLandingFile("sites.html"));
+app.get(["/media", "/media.html"], sendLandingFile("media.html"));
+
 app.get("/admin", (_req, res) => {
   res.sendFile(path.join(__dirname, "admin", "index.html"));
 });
 
 app.listen(PORT, HOST, () => {
-  console.log(`Server running at http://${HOST}:${PORT}`);
-  console.log(`Admin panel: http://${HOST}:${PORT}/admin`);
+  const displayHost = HOST === "0.0.0.0" ? "127.0.0.1" : HOST;
+  const baseUrl = `http://${displayHost}:${PORT}`;
+  console.log(`Server running at ${baseUrl}`);
+  console.log(`Googleseo page: ${baseUrl}${googleseoQueryUrl()}`);
+  console.log(`Admin panel: ${baseUrl}/admin`);
 });
